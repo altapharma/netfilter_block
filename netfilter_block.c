@@ -1,3 +1,13 @@
+/****************************************************************************************
+*                                                                                       *
+*   Subject : Subject 26                                                                *
+*   Prof : gilgil                                                                       *
+*   Student Name : Lim Kyung Dai                                                        *
+*   Student ID : 2015410209                                                             *
+*                                                                                       *
+*   - HW4 : my_netfilter_block                                                          *
+*                                                                                       *
+****************************************************************************************/
 #include "my_netfilter_block.h"
 
 int sign = 0;
@@ -35,12 +45,11 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     ph = nfq_get_msg_packet_hdr(tb);
     if (ph) {
         id = ntohl(ph->packet_id);
-        //printf("hw_protocol=0x%04x hook=%u id=%u ",
-           // ntohs(ph->hw_protocol), ph->hook, id);
+        printf("hw_protocol=0x%04x hook=%u id=%u ", ntohs(ph->hw_protocol), ph->hook, id);
     }
 
     hwph = nfq_get_packet_hw(tb);
-   /* if (hwph) {
+    if (hwph) {
         int i, hlen = ntohs(hwph->hw_addrlen);
 
         printf("hw_src_addr=");
@@ -66,34 +75,31 @@ static u_int32_t print_pkt (struct nfq_data *tb)
 
     ifi = nfq_get_physoutdev(tb);
     if (ifi)
-        printf("physoutdev=%u ", ifi);*/
+        printf("physoutdev=%u ", ifi);
 
     ret = nfq_get_payload(tb, &data);
     if (ret >= 0){
-        //printf("payload_len=%d ", ret);
-        //dump(data, ret);
+        printf("payload_len=%d ", ret);
+	printf("Dump of Packet\n");
+        dump(data, ret);
         struct sniff_ip* net_ip;
         struct sniff_tcp* net_tcp;
         int size_ip;
         int size_tcp;
         net_ip = (struct sniff_ip*)(data);
         size_ip = IP_HL(net_ip)*4;
+	printf("\n[+] ip header length : %d\n", size_ip);
         if(net_ip->ip_p == 6){
             net_tcp = (struct sniff_tcp*)(data + size_ip);
             size_tcp = TH_OFF(net_tcp)*4; //tcp header size (maximum : 60byte)
-            //printf("\n[+] tcp header length : %d\n", size_tcp);
-            //printf("\noriginal\n%s\n",data + size_ip + size_tcp);
+            printf("[+] tcp header length : %d\n", size_tcp);
 
             for(int i=0;i<6;i++){
-                //printf("hi\n");
-                //printf("test : %s\n",str[i]);
                 check1 = strncmp((data + size_ip + size_tcp), str[i], strlen(str[i]));
-                //printf("check1 : %d\n", check1);
                 if(check1 == 0){
                     printf("method : %s\n",str[i]);
-                    printf("%s\n",data+size_ip+size_tcp+strlen(str[i]));
+                    printf("%s\n", data + size_ip + size_tcp);
                     for(int j = 0;j<strlen(data + size_ip + size_tcp + strlen(str[i]));j++){
-
                         check2 = strncmp(data + size_ip + size_tcp + strlen(str[i]) + j,"Host: ",strlen("Host: "));
                         if(check2 == 0){
                             printf("Host check\n");
@@ -101,9 +107,7 @@ static u_int32_t print_pkt (struct nfq_data *tb)
                             if(check3 == 0){
                                 host = (char*)malloc(sizeof(url));
                                 strncpy(host,data + size_ip + size_tcp + j + strlen(str[i])+strlen("Host: "),strlen(url));
-                                printf("###########################################################################\n");
                                 printf("target url : %s \n", host);
-                                //printf("target url : %s \n",strncpy(host,data + size_ip + size_tcp + strlen(str[i])+strlen("Host: "),strlen(argv[1])));
                                 sign = 1; 
                             }
                         }
@@ -113,7 +117,7 @@ static u_int32_t print_pkt (struct nfq_data *tb)
         }
     }
 
-    //fputc('\n', stdout);
+    fputc('\n', stdout);
 
     return id;
 }
@@ -123,7 +127,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
           struct nfq_data *nfa, void *data)
 {
     u_int32_t id = print_pkt(nfa);
-    //printf("entering callback\n");
+    printf("entering callback\n");
     if(sign == 0)
         return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
     else{
@@ -147,12 +151,10 @@ int main(int argc, char **argv)
     char buf[4096] __attribute__ ((aligned));
     url = (char*)malloc(sizeof(strlen(argv[1])));
     strcpy(url, argv[1]);
-    //printf("2\n");
     system("iptables -L");
     system("iptables -F");
     system("iptables -A INPUT -j NFQUEUE --queue-num 0");
     system("iptables -A OUTPUT -j NFQUEUE --queue-num 0");
-    //printf("1\n");
     printf("opening library handle\n");
     h = nfq_open();
     if (!h) {
@@ -189,7 +191,7 @@ int main(int argc, char **argv)
 
     for (;;) {
         if ((rv = recv(fd, buf, sizeof(buf), 0)) >= 0) {
-           // printf("pkt received\n");
+            printf("pkt received\n");
             nfq_handle_packet(h, buf, rv);
             continue;
         }
